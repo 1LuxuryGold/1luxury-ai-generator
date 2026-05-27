@@ -1,5 +1,12 @@
 {
   "name": "1luxury-ai-generator",
   "version": "1.0.0",
-  "type": "module"
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "sharp": "^0.33.5"
+  }
 }
