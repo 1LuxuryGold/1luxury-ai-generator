@@ -22,77 +22,109 @@ error: “Method not allowed. Use POST.”
 }
 
 try {
-const body = req.body || {};
+var body = req.body || {};
 
-const prompt = body.prompt || "";
-const productTitle = body.product_title || "1Luxury Gold Minis Pendant";
-if (!prompt) {
+if (typeof body === "string") {
+  try {
+    body = JSON.parse(body);
+  } catch (error) {
+    body = { prompt: body };
+  }
+}
+if (body.data && typeof body.data === "string") {
+  try {
+    var parsedData = JSON.parse(body.data);
+    body = Object.assign({}, body, parsedData);
+  } catch (error) {}
+}
+var prompt = body.prompt || body.image_generation_prompt || body.imageGenerationPrompt || body["Image Generation Prompt"] || "";
+var productTitle = body.product_title || body.productTitle || body["Product Title"] || "1Luxury Gold Minis Pendant";
+if (!prompt || typeof prompt !== "string") {
   return res.status(400).json({
     success: false,
     error: "Missing prompt.",
     receivedBody: body
   });
 }
-if (!process.env.REPLICATE_API_TOKEN) {
+var token = process.env.REPLICATE_API_TOKEN;
+if (!token) {
   return res.status(500).json({
     success: false,
-    error: "Missing REPLICATE_API_TOKEN in Vercel."
+    error: "Missing REPLICATE_API_TOKEN in Vercel Environment Variables."
   });
 }
-const finalPrompt = [
+var finalPrompt = [
   "Create a premium luxury macro product photograph for the 1Luxury Gold Minis Collection.",
+  "",
   "Product title: " + productTitle,
-  "Design request: " + prompt,
-  "Small polished 14k yellow gold mini pendant with elegant bail.",
-  "Cream silk or Paraiba blue luxury background.",
-  "Soft champagne lighting, shallow depth of field, realistic warm gold reflections.",
-  "Premium catalog-ready jewelry photography.",
-  "No third-party logos, no copied designer motifs, no fake gemstones unless requested, no clutter."
+  "",
+  "Design request: " + prompt.slice(0, 1200),
+  "",
+  "Visual requirements:",
+  "- Original 1Luxury Miami jewelry concept",
+  "- Small polished 14k yellow gold mini pendant",
+  "- Elegant bail",
+  "- Smooth rounded high-polish surfaces",
+  "- Realistic warm yellow gold reflections",
+  "- Clean jewelry proportions",
+  "- Premium craftsmanship",
+  "- Cream silk or Paraiba blue luxury material background",
+  "- Soft champagne lighting",
+  "- Shallow depth of field",
+  "- Refined feminine luxury styling",
+  "- Parisian high-jewelry maison inspired composition",
+  "- Premium catalog-ready jewelry photography",
+  "- Ultra-realistic jewelry product photography",
+  "",
+  "Avoid:",
+  "- Third-party logos",
+  "- Copied designer motifs",
+  "- Fake gemstones or diamonds unless requested",
+  "- Cluttered background",
+  "- Engraved text unless requested",
+  "- Cartoon style",
+  "- Melted metal",
+  "- Distorted shapes",
+  "- Bad proportions"
 ].join("\n");
-const replicateResponse = await fetch(
-  "https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions",
+var replicateResponse = await fetch(
+  "https://api.replicate.com/v1/models/black-forest-labs/flux-2-pro/predictions",
   {
     method: "POST",
     headers: {
-      Authorization: "Bearer " + process.env.REPLICATE_API_TOKEN,
+      "Authorization": "Bearer " + token,
       "Content-Type": "application/json",
-      Prefer: "wait=60"
+      "Prefer": "wait"
     },
     body: JSON.stringify({
       input: {
         prompt: finalPrompt,
         aspect_ratio: body.aspect_ratio || "1:1",
-        output_format: body.output_format || "webp",
-        output_quality: Number(body.output_quality || 90),
-        num_outputs: Number(body.num_outputs || 1)
+        output_format: body.output_format || "png"
       }
     })
   }
 );
-const prediction = await replicateResponse.json();
+var prediction = await replicateResponse.json();
 if (!replicateResponse.ok) {
   return res.status(500).json({
     success: false,
-    error: "Replicate request failed.",
+    error: "Replicate generation failed.",
     details: prediction
   });
 }
-let imageUrl = "";
+var imageUrl = null;
 if (Array.isArray(prediction.output)) {
-  imageUrl = prediction.output[0] || "";
-}
-if (typeof prediction.output === "string") {
+  imageUrl = prediction.output[0];
+} else if (typeof prediction.output === "string") {
   imageUrl = prediction.output;
 }
 if (!imageUrl) {
-  return res.status(202).json({
+  return res.status(500).json({
     success: false,
-    message: "Prediction created but image was not ready yet.",
-    predictionId: prediction.id || null,
-    predictionUrl: prediction.urls && prediction.urls.get ? prediction.urls.get : null,
-    output: prediction.output || null,
-    promptUsed: finalPrompt,
-    status: prediction.status || null
+    error: "No image returned.",
+    details: prediction,
+    promptUsed: finalPrompt
   });
 }
 return res.status(200).json({
