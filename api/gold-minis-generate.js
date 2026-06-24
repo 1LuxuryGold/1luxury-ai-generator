@@ -31,15 +31,9 @@ if (typeof body === "string") {
     body = { prompt: body };
   }
 }
-if (body.data && typeof body.data === "string") {
-  try {
-    var parsedData = JSON.parse(body.data);
-    body = Object.assign({}, body, parsedData);
-  } catch (error) {}
-}
-var prompt = body.prompt || body.image_generation_prompt || body.imageGenerationPrompt || body["Image Generation Prompt"] || "";
-var productTitle = body.product_title || body.productTitle || body["Product Title"] || "1Luxury Gold Minis Pendant";
-if (!prompt || typeof prompt !== "string") {
+var prompt = body.prompt || "";
+var productTitle = body.product_title || "1Luxury Gold Minis Pendant";
+if (!prompt) {
   return res.status(400).json({
     success: false,
     error: "Missing prompt.",
@@ -50,42 +44,18 @@ var token = process.env.REPLICATE_API_TOKEN;
 if (!token) {
   return res.status(500).json({
     success: false,
-    error: "Missing REPLICATE_API_TOKEN in Vercel Environment Variables."
+    error: "Missing REPLICATE_API_TOKEN in Vercel."
   });
 }
 var finalPrompt = [
   "Create a premium luxury macro product photograph for the 1Luxury Gold Minis Collection.",
-  "",
   "Product title: " + productTitle,
-  "",
   "Design request: " + prompt.slice(0, 1200),
-  "",
-  "Visual requirements:",
-  "- Original 1Luxury Miami jewelry concept",
-  "- Small polished 14k yellow gold mini pendant",
-  "- Elegant bail",
-  "- Smooth rounded high-polish surfaces",
-  "- Realistic warm yellow gold reflections",
-  "- Clean jewelry proportions",
-  "- Premium craftsmanship",
-  "- Cream silk or Paraiba blue luxury material background",
-  "- Soft champagne lighting",
-  "- Shallow depth of field",
-  "- Refined feminine luxury styling",
-  "- Parisian high-jewelry maison inspired composition",
-  "- Premium catalog-ready jewelry photography",
-  "- Ultra-realistic jewelry product photography",
-  "",
-  "Avoid:",
-  "- Third-party logos",
-  "- Copied designer motifs",
-  "- Fake gemstones or diamonds unless requested",
-  "- Cluttered background",
-  "- Engraved text unless requested",
-  "- Cartoon style",
-  "- Melted metal",
-  "- Distorted shapes",
-  "- Bad proportions"
+  "Small polished 14k yellow gold mini pendant with elegant bail.",
+  "Cream silk or Paraiba blue luxury background.",
+  "Soft champagne lighting, shallow depth of field, realistic warm gold reflections.",
+  "Premium catalog-ready jewelry photography.",
+  "No third-party logos, no copied designer motifs, no fake gemstones unless requested, no clutter."
 ].join("\n");
 var replicateResponse = await fetch(
   "https://api.replicate.com/v1/models/black-forest-labs/flux-2-pro/predictions",
@@ -109,7 +79,7 @@ var prediction = await replicateResponse.json();
 if (!replicateResponse.ok) {
   return res.status(500).json({
     success: false,
-    error: "Replicate generation failed.",
+    error: "Replicate request failed.",
     details: prediction
   });
 }
